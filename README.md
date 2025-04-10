@@ -1,13 +1,13 @@
 # Frogberry
 
-A TypeScript/Bun port of the [frogberry](https://github.com/paradigmxyz/artemis/) framework, which is a fork of [paradigm/artemis](https://github.com/paradigmxyz/artemis/) with modifications.
+A TypeScript/Bun port of the [Burberry](https://github.com/tonyke-bot/burberry) framework, which is a fork of [Artemis](https://github.com/paradigmxyz/artemis/) with modifications.
 
 ## Installation
 
 You can install Frogberry directly from GitHub:
 
 ```bash
-bun add https://github.com/username/frogberry.git
+bun add https://github.com/hyperfwog/frogberry.git
 ```
 
 ## Overview
@@ -77,12 +77,12 @@ await engine.runAndJoin();
 Here's a simple example that uses an interval collector to emit events every second, and a strategy that logs the events and submits actions:
 
 ```typescript
-import { Engine } from './engine.js';
-import { IntervalCollector } from './collector/interval_collector.js';
-import { Dummy } from './executor/dummy.js';
-import { PrinterExecutor } from './executor/printer.js';
-import { Strategy, ActionSubmitter } from './types.js';
-import { logger, LogLevel } from './utils/logger.js';
+import { Engine } from './engine';
+import { IntervalCollector } from './collector/interval_collector';
+import { Dummy } from './executor/dummy';
+import { PrinterExecutor } from './executor/printer';
+import { Strategy, ActionSubmitter } from './types';
+import { logger, LogLevel } from './utils/logger';
 
 // Define event and action types
 type Event = Date;
@@ -126,28 +126,8 @@ main().catch(err => {
 - **Async Support**: Built with async/await and promises.
 - **Extensible**: Add your own collectors, strategies, and executors.
 
-## Examples
-
-### Simple Example
-
-A basic example that demonstrates the core functionality of Frogberry:
-
-```bash
-bun run example
-```
-
-### HyperEVM Example
-
-An example that demonstrates how to monitor HyperEVM events:
-
-```bash
-bun run example:hyperevm
-```
-
 ## Optional Features
 
 The following features are available:
-
-- **Ethereum Support**: Collectors for Ethereum blocks, transactions, and logs.
-- **HyperEVM Support**: Collectors for HyperEVM blocks, transactions, and logs.
+- **EVM Support**: Collectors for EVM blocks, transactions, and logs.
 - **Telegram Support**: Executors for sending messages to Telegram.

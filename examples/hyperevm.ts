@@ -151,8 +151,11 @@ async function main() {
     blockRange: 50,
   };
 
-  // Create a block engine
-  const blockEngine = new Engine<Block, Action>(engineConfig);
+  // Create a block engine with SIGINT handler
+  const blockEngine = new Engine<Block, Action>(engineConfig)
+    .withSigintHandler(true)
+    .withSigintShutdownTimeout(3000)
+    .withExitProcessOnSigint(true);
   blockEngine.addCollector(BlockCollector.withHttp(nodeUrl, hyperEvmChain, blockCollectorConfig));
   blockEngine.addStrategy(new BlockStrategy());
   blockEngine.addExecutor(new PrinterExecutor<Action>('Block'));
@@ -164,12 +167,6 @@ async function main() {
   );
   logEngine.addStrategy(new WHYPETransferStrategy());
   logEngine.addExecutor(new PrinterExecutor<Action>('WHYPE'));
-
-  // Set up signal handlers to stop the engines gracefully
-  process.on('SIGINT', async () => {
-    logger.info('Received SIGINT, stopping engines...');
-    await Promise.all([blockEngine.stop(3000), logEngine.stop(3000)]);
-  });
 
   // Run the engines
   logger.info('Starting engines...');
@@ -195,6 +192,7 @@ async function main() {
   });
 
   logger.info('All engines stopped');
+  process.exit(0);
 }
 
 // Run the example

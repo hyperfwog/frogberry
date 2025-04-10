@@ -131,6 +131,9 @@ async function main() {
     initialBackoffMs: 100,
     maxBackoffMs: 5000,
     stopOnCriticalError: true,
+    registerSigintHandler: true,
+    sigintShutdownTimeoutMs: 10000,
+    exitProcessOnSigint: true,
   };
 
   // Block collector configuration
@@ -179,15 +182,6 @@ async function main() {
   txEngine.addCollector(MempoolCollector.withHttp(nodeUrl, mainnet, mempoolCollectorConfig));
   txEngine.addStrategy(new TransactionStrategy());
   txEngine.addExecutor(new PrinterExecutor<Action>('Transaction'));
-
-  // Set up signal handlers to stop the engines gracefully
-  process.on('SIGINT', async () => {
-    logger.info('Received SIGINT, stopping engines...');
-    await Promise.all([blockEngine.stop(10000), logEngine.stop(10000), txEngine.stop(10000)]);
-
-    // Force exit the process to ensure all background operations are terminated
-    process.exit(0);
-  });
 
   // Run the engines
   logger.info('Starting engines...');

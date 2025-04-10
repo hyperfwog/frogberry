@@ -8,7 +8,6 @@ import {
   type Block,
   type Chain,
   type PublicClient,
-  type Transport,
   createPublicClient,
   webSocket,
 } from 'viem';

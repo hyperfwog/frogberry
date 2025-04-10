@@ -39,7 +39,7 @@ export class MempoolCollector implements Collector<Transaction> {
   private config: MempoolCollectorConfig;
   private pendingTxHashes: Set<Hash> = new Set();
   private processedTxHashes: Set<Hash> = new Set();
-  private isWebSocket: boolean;
+  private readonly isWebSocket: boolean;
 
   /**
    * Create a new MempoolCollector

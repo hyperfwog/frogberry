@@ -33,6 +33,12 @@ export interface EngineConfig {
   maxBackoffMs?: number;
   /** Whether to stop the engine on critical errors */
   stopOnCriticalError?: boolean;
+  /** Whether to register a SIGINT handler to stop the engine gracefully */
+  registerSigintHandler?: boolean;
+  /** Timeout in milliseconds for graceful shutdown when SIGINT is received */
+  sigintShutdownTimeoutMs?: number;
+  /** Whether to exit the process after stopping the engine on SIGINT */
+  exitProcessOnSigint?: boolean;
 }
 
 /**
@@ -47,6 +53,7 @@ export class Engine<E, A> {
   private tasks: Promise<void>[] = [];
   private eventChannel?: BroadcastChannel<E>;
   private actionChannel?: BroadcastChannel<A>;
+  private _sigintHandlerRegistered = false;
 
   /**
    * Create a new Engine instance
@@ -68,8 +75,37 @@ export class Engine<E, A> {
       initialBackoffMs: 100,
       maxBackoffMs: 30000,
       stopOnCriticalError: false,
+      registerSigintHandler: false,
+      sigintShutdownTimeoutMs: 5000,
+      exitProcessOnSigint: false,
       ...config,
     };
+
+    // Register SIGINT handler if configured
+    if (this.config.registerSigintHandler) {
+      this.registerSigintHandler();
+    }
+  }
+
+  /**
+   * Register a SIGINT handler to stop the engine gracefully
+   */
+  private registerSigintHandler(): void {
+    if (this._sigintHandlerRegistered) {
+      return;
+    }
+
+    process.on('SIGINT', async () => {
+      logger.info('Received SIGINT, stopping engine...');
+      await this.stop(this.config.sigintShutdownTimeoutMs);
+
+      if (this.config.exitProcessOnSigint) {
+        logger.info('Exiting process due to SIGINT');
+        process.exit(0);
+      }
+    });
+
+    this._sigintHandlerRegistered = true;
   }
 
   /**
@@ -120,6 +156,39 @@ export class Engine<E, A> {
    */
   withStopOnCriticalError(stop: boolean): Engine<E, A> {
     this.config.stopOnCriticalError = stop;
+    return this;
+  }
+
+  /**
+   * Enable or disable the SIGINT handler
+   * @param enable Whether to enable the SIGINT handler
+   */
+  withSigintHandler(enable = true): Engine<E, A> {
+    this.config.registerSigintHandler = enable;
+
+    // Register or unregister the handler
+    if (enable && !this._sigintHandlerRegistered) {
+      this.registerSigintHandler();
+    }
+
+    return this;
+  }
+
+  /**
+   * Set the timeout for graceful shutdown when SIGINT is received
+   * @param timeoutMs Timeout in milliseconds
+   */
+  withSigintShutdownTimeout(timeoutMs: number): Engine<E, A> {
+    this.config.sigintShutdownTimeoutMs = timeoutMs;
+    return this;
+  }
+
+  /**
+   * Enable or disable process exit after stopping the engine on SIGINT
+   * @param enable Whether to exit the process after stopping the engine
+   */
+  withExitProcessOnSigint(enable = true): Engine<E, A> {
+    this.config.exitProcessOnSigint = enable;
     return this;
   }
 

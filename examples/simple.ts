@@ -67,6 +67,9 @@ async function main() {
     initialBackoffMs: 100,
     maxBackoffMs: 5000,
     stopOnCriticalError: true,
+    registerSigintHandler: true,
+    sigintShutdownTimeoutMs: 3000,
+    exitProcessOnSigint: true,
   };
 
   // Create a new engine with the configuration
@@ -85,16 +88,10 @@ async function main() {
   // Run the engine
   logger.info('Starting engine...');
 
-  // Set up a signal handler to stop the engine gracefully
-  process.on('SIGINT', async () => {
-    logger.info('Received SIGINT, stopping engine...');
-    await engine.stop(3000); // Stop with a 3-second timeout
-  });
-
-  // Run the engine for 10 seconds
+  // Run the engine for 3 seconds
   const tasks = await engine.run();
 
-  // Wait for 10 seconds
+  // Wait for 3 seconds
   logger.info('Running for 3 seconds...');
   await new Promise((resolve) => setTimeout(resolve, 3000));
 
