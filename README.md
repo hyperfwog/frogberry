@@ -1,6 +1,6 @@
-![alt text][logo]
-
-[logo]: frogberry.png "Frogberry"
+<div align="center">
+  <img src="frogberry.png" alt="Frogberry" title="Frogberry" width="100" />
+</div>
 
 # Frogberry
 
