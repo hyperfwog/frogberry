@@ -3,7 +3,7 @@
  * This implementation provides better performance and resource utilization
  */
 
-import { join } from 'path';
+import { join } from 'node:path';
 import type { Block, Chain, PublicClient } from 'viem';
 import type { Collector, CollectorStream } from '../types';
 import { logger } from '../utils/logger';
@@ -47,7 +47,7 @@ export class BlockCollectorBun implements Collector<Block> {
       preferredTransport: 'webSocket',
       ...config,
     };
-    
+
     // Path to the worker script, relative to the current file
     this.workerPath = join(__dirname, 'block_collector_worker.ts');
   }
@@ -66,9 +66,9 @@ export class BlockCollectorBun implements Collector<Block> {
   ): BlockCollectorBun {
     // Create a mock client with the URL
     const mockClient = {
-      transport: { url, type: 'webSocket' }
+      transport: { url, type: 'webSocket' },
     } as unknown as PublicClient;
-    
+
     return new BlockCollectorBun(mockClient, chain, {
       ...config,
       preferredTransport: 'webSocket',
@@ -89,9 +89,9 @@ export class BlockCollectorBun implements Collector<Block> {
   ): BlockCollectorBun {
     // Create a mock client with the URL
     const mockClient = {
-      transport: { url, type: 'http' }
+      transport: { url, type: 'http' },
     } as unknown as PublicClient;
-    
+
     return new BlockCollectorBun(mockClient, chain, {
       ...config,
       preferredTransport: 'http',
@@ -104,21 +104,21 @@ export class BlockCollectorBun implements Collector<Block> {
 
   async getEventStream(): Promise<CollectorStream<Block>> {
     logger.debug(`Starting BlockCollectorBun with chain ID ${this.chain.id}`);
-    
+
     // Queue to buffer blocks
     const queue: Block[] = [];
     // Resolvers for the async iterator
     let resolvers: ((value: IteratorResult<Block>) => void)[] = [];
     // Flag to track if the collector is done
     let done = false;
-    
+
     // Capture config values for use in closures
     const maxQueueSize = this.config.maxQueueSize ?? 100;
-    
+
     // Get the RPC URL from the client
     const transport = this.client.transport as Record<string, unknown>;
     const rpcUrl = transport?.url as string;
-    
+
     // Prepare environment variables
     const env = {
       RPC_URL: rpcUrl,
@@ -127,7 +127,7 @@ export class BlockCollectorBun implements Collector<Block> {
       POLLING_INTERVAL_MS: (this.config.pollingIntervalMs ?? 1000).toString(),
       INCLUDE_TRANSACTIONS: (this.config.includeTransactions ?? false).toString(),
     };
-    
+
     // Spawn the worker process
     const proc = Bun.spawn({
       cmd: [process.execPath, this.workerPath],
@@ -139,12 +139,12 @@ export class BlockCollectorBun implements Collector<Block> {
             const transportType = message.transportType;
             logger.info(`BlockCollectorBun worker ready using ${transportType} transport`);
           }
-          
+
           // Handle error message
           else if ('type' in message && message.type === 'error') {
             logger.error(`BlockCollectorBun worker error: ${message.message}`);
           }
-          
+
           // Handle block message
           else if ('type' in message && message.type === 'block' && 'data' in message) {
             try {
@@ -156,10 +156,10 @@ export class BlockCollectorBun implements Collector<Block> {
                 }
                 return value;
               });
-              
+
               // Create a Block object
               const block = blockData as Block;
-              
+
               // If there are waiting resolvers, resolve one with the block
               if (resolvers.length > 0) {
                 const resolve = resolvers.shift();
@@ -169,7 +169,7 @@ export class BlockCollectorBun implements Collector<Block> {
               } else {
                 // Otherwise, add the block to the queue
                 queue.push(block);
-                
+
                 // Limit queue size
                 if (queue.length > maxQueueSize) {
                   queue.shift();
@@ -184,29 +184,29 @@ export class BlockCollectorBun implements Collector<Block> {
       },
       onExit(proc, exitCode, signalCode, error) {
         logger.debug(`BlockCollectorBun worker exited with code ${exitCode}`);
-        
+
         if (error) {
           logger.error(`BlockCollectorBun worker error: ${error}`);
         }
-        
+
         // Mark as done
         done = true;
-        
+
         // Resolve any waiting resolvers with done
         for (const resolver of resolvers) {
           resolver({ done: true, value: undefined as unknown });
         }
         resolvers = [];
-      }
+      },
     });
-    
+
     // Function to clean up resources
     const cleanup = () => {
       logger.debug('Cleaning up BlockCollectorBun resources');
-      
+
       // Send stop message to the worker
       proc.send('stop');
-      
+
       // Kill the process if it doesn't exit within 1 second
       setTimeout(() => {
         if (!proc.killed) {
@@ -214,27 +214,27 @@ export class BlockCollectorBun implements Collector<Block> {
           proc.kill();
         }
       }, 1000);
-      
+
       // Mark as done
       done = true;
-      
+
       // Resolve any waiting resolvers with done
       for (const resolver of resolvers) {
         resolver({ done: true, value: undefined as unknown });
       }
       resolvers = [];
-      
+
       // Clear the queue
       queue.length = 0;
     };
-    
+
     // Return an async iterator that yields blocks
     return {
       async next(): Promise<IteratorResult<Block>> {
         if (done) {
           return { done: true, value: undefined as unknown };
         }
-        
+
         if (queue.length > 0) {
           // If there are blocks in the queue, return one
           const block = queue.shift();
@@ -244,18 +244,18 @@ export class BlockCollectorBun implements Collector<Block> {
           }
           return { done: false, value: block };
         }
-        
+
         // Otherwise, wait for a block
         return new Promise<IteratorResult<Block>>((resolve) => {
           resolvers.push(resolve);
         });
       },
-      
+
       // Clean up when the iterator is done
       async return(): Promise<IteratorResult<Block>> {
         cleanup();
         return { done: true, value: undefined as unknown };
-      }
+      },
     };
   }
 }
