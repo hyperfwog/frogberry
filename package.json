@@ -1,0 +1,43 @@
+{
+  "name": "frogberry",
+  "version": "0.1.0",
+  "description": "A TypeScript/Bun port of the Frogberry framework for building trading bots",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test",
+    "example": "bun examples/simple.ts",
+    "example:hyperevm": "bun examples/hyperevm.ts",
+    "prepare": "bun run build",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "check": "biome check --apply ."
+  },
+  "keywords": ["trading", "bot", "framework", "event-driven", "typescript", "bun"],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/frogberry.git"
+  },
+  "bugs": {
+    "url": "https://github.com/username/frogberry/issues"
+  },
+  "homepage": "https://github.com/username/frogberry#readme",
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "viem": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "viem": {
+      "optional": true
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"]
+}
