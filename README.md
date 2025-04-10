@@ -1,3 +1,7 @@
+![alt text][logo]
+
+[logo]: frogberry.png "Frogberry"
+
 # Frogberry
 
 A TypeScript/Bun port of the [Burberry](https://github.com/tonyke-bot/burberry) framework, which is a fork of [Artemis](https://github.com/paradigmxyz/artemis/) with modifications.

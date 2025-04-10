@@ -191,8 +191,8 @@ async function main() {
   });
 
   logger.info('All engines stopped');
-  // No need to call process.exit(0) here, as the global SIGINT handler will handle it
-  // or the process will exit naturally when all tasks are complete
+  // Force exit the process to ensure all resources are cleaned up
+  process.exit(0);
 }
 
 // Add process exit hook for logging purposes only
