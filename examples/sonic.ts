@@ -131,10 +131,11 @@ async function main() {
     initialBackoffMs: 100,
     maxBackoffMs: 5000,
     stopOnCriticalError: true,
-    registerSigintHandler: true,
-    sigintShutdownTimeoutMs: 10000,
-    exitProcessOnSigint: true,
+    // No need for individual SIGINT handlers anymore
   };
+
+  // Register the global SIGINT handler
+  Engine.registerGlobalSigintHandler(10000);
 
   // Block collector configuration
   const blockCollectorConfig: BlockCollectorConfig = {
@@ -210,10 +211,15 @@ async function main() {
   });
 
   logger.info('All engines stopped');
-
-  // Force exit the process to ensure all background operations are terminated
-  process.exit(0);
+  // No need to call process.exit(0) here, as the global SIGINT handler will handle it
+  // or the process will exit naturally when all tasks are complete
 }
+
+// Add process exit hook for logging purposes only
+process.on('exit', (code) => {
+  logger.info(`Process exiting with code ${code}`);
+  // Perform any cleanup here if needed
+});
 
 // Run the example
 main().catch((err) => {

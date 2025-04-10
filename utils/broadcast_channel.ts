@@ -19,9 +19,9 @@ export enum ChannelErrorType {
  */
 export class ChannelError extends Error {
   readonly type: ChannelErrorType;
-  readonly context?: any;
+  readonly context?: unknown;
 
-  constructor(type: ChannelErrorType, message: string, context?: any) {
+  constructor(type: ChannelErrorType, message: string, context?: unknown) {
     super(message);
     this.name = 'ChannelError';
     this.type = type;
@@ -101,8 +101,10 @@ export class BroadcastReceiver<T> implements AsyncIterator<T> {
 
     // If we have waiting resolvers, resolve them immediately
     if (this.resolvers.length > 0) {
-      const resolver = this.resolvers.shift()!;
-      resolver({ done: false, value });
+      const resolver = this.resolvers.shift();
+      if (resolver) {
+        resolver({ done: false, value });
+      }
       return;
     }
 
@@ -134,7 +136,7 @@ export class BroadcastReceiver<T> implements AsyncIterator<T> {
 
     // Resolve any waiting resolvers with done
     for (const resolver of this.resolvers) {
-      resolver({ done: true, value: undefined as any });
+      resolver({ done: true, value: undefined as unknown });
     }
     this.resolvers = [];
 
@@ -147,12 +149,16 @@ export class BroadcastReceiver<T> implements AsyncIterator<T> {
    */
   async next(): Promise<IteratorResult<T>> {
     if (this.closed) {
-      return { done: true, value: undefined as any };
+      return { done: true, value: undefined as unknown };
     }
 
     // If we have buffered values, return one immediately
     if (this.buffer.length > 0) {
-      const value = this.buffer.shift()!;
+      const value = this.buffer.shift();
+      if (value === undefined) {
+        // This should never happen, but we handle it just in case
+        return this.next();
+      }
       return { done: false, value };
     }
 

@@ -49,7 +49,8 @@ export class BlockCollector implements Collector<Block> {
     };
 
     // Determine if the client uses WebSocket transport
-    this.isWebSocket = (this.client.transport as any)?.type === 'webSocket';
+    const transport = this.client.transport as Record<string, unknown>;
+    this.isWebSocket = transport?.type === 'webSocket';
   }
 
   /**
@@ -111,25 +112,33 @@ export class BlockCollector implements Collector<Block> {
             if (
               done ||
               abortController.signal.aborted ||
-              (global as any).__BURBERRY_FORCED_SHUTDOWN__
+              (global as Record<string, unknown>).__BURBERRY_FORCED_SHUTDOWN__
             ) {
               return;
             }
 
             // Only process if it's a new block
-            if (lastBlockNumber === null || block.number! > lastBlockNumber) {
-              lastBlockNumber = block.number!;
+            if (block.number === undefined) {
+              // Skip blocks without a number
+              return;
+            }
+            
+            if (lastBlockNumber === null || block.number > lastBlockNumber) {
+              lastBlockNumber = block.number;
 
               if (resolvers.length > 0) {
                 // If there are waiting resolvers, resolve one with the block
-                const resolve = resolvers.shift()!;
-                resolve({ done: false, value: block });
+                const resolve = resolvers.shift();
+                if (resolve) {
+                  resolve({ done: false, value: block });
+                }
               } else {
                 // Otherwise, add the block to the queue
                 queue.push(block);
 
                 // Limit queue size
-                if (queue.length > this.config.maxQueueSize!) {
+                const maxQueueSize = this.config.maxQueueSize ?? 100;
+                if (queue.length > maxQueueSize) {
                   queue.shift();
                   logger.warn('BlockCollector queue overflow, dropping oldest block');
                 }
@@ -156,7 +165,7 @@ export class BlockCollector implements Collector<Block> {
 
           // Resolve any waiting resolvers with done
           for (const resolver of resolvers) {
-            resolver({ done: true, value: undefined as any });
+            resolver({ done: true, value: undefined as unknown });
           }
           resolvers = [];
 
@@ -179,12 +188,18 @@ export class BlockCollector implements Collector<Block> {
     return {
       async next(): Promise<IteratorResult<Block>> {
         if (done) {
-          return { done: true, value: undefined as any };
+          return { done: true, value: undefined as unknown };
         }
 
         if (queue.length > 0) {
           // If there are blocks in the queue, return one
-          return { done: false, value: queue.shift()! };
+          // If there are blocks in the queue, return one
+          const block = queue.shift();
+          if (block === undefined) {
+            // This should never happen, but we handle it just in case
+            return { done: true, value: undefined as unknown };
+          }
+          return { done: false, value: block };
         }
 
         // Otherwise, wait for a block
@@ -198,7 +213,7 @@ export class BlockCollector implements Collector<Block> {
         if (cleanupFn) {
           cleanupFn();
         }
-        return { done: true, value: undefined as any };
+        return { done: true, value: undefined as unknown };
       },
     };
   }
@@ -217,7 +232,7 @@ export class BlockCollector implements Collector<Block> {
     let isPolling = false; // Flag to prevent concurrent polling
 
     // Create a polling mechanism for blocks with exponential backoff
-    let currentInterval = this.config.pollingIntervalMs!;
+    let currentInterval = this.config.pollingIntervalMs ?? 1000;
     let consecutiveErrors = 0;
 
     const pollBlock = async () => {
@@ -226,7 +241,7 @@ export class BlockCollector implements Collector<Block> {
         isPolling ||
         done ||
         abortController.signal.aborted ||
-        (global as any).__BURBERRY_FORCED_SHUTDOWN__
+        (global as Record<string, unknown>).__BURBERRY_FORCED_SHUTDOWN__
       ) {
         return;
       }
@@ -248,7 +263,7 @@ export class BlockCollector implements Collector<Block> {
         // Reset backoff on success
         if (consecutiveErrors > 0) {
           consecutiveErrors = 0;
-          currentInterval = this.config.pollingIntervalMs!;
+          currentInterval = this.config.pollingIntervalMs ?? 1000;
           if (intervalId) {
             clearInterval(intervalId);
             intervalId = setInterval(pollBlock, currentInterval);
@@ -267,14 +282,17 @@ export class BlockCollector implements Collector<Block> {
 
           if (resolvers.length > 0) {
             // If there are waiting resolvers, resolve one with the block
-            const resolve = resolvers.shift()!;
-            resolve({ done: false, value: block });
+            const resolve = resolvers.shift();
+            if (resolve) {
+              resolve({ done: false, value: block });
+            }
           } else {
             // Otherwise, add the block to the queue
             queue.push(block);
 
             // Limit queue size
-            if (queue.length > this.config.maxQueueSize!) {
+            const maxQueueSize = this.config.maxQueueSize ?? 100;
+            if (queue.length > maxQueueSize) {
               queue.shift();
               logger.warn('BlockCollector queue overflow, dropping oldest block');
             }
@@ -329,7 +347,7 @@ export class BlockCollector implements Collector<Block> {
 
       // Resolve any waiting resolvers with done
       for (const resolver of resolvers) {
-        resolver({ done: true, value: undefined as any });
+        resolver({ done: true, value: undefined as unknown });
       }
       resolvers = [];
 
@@ -337,19 +355,24 @@ export class BlockCollector implements Collector<Block> {
       queue.length = 0;
 
       // Set the global forced shutdown flag to ensure any in-progress operations stop
-      (global as any).__BURBERRY_FORCED_SHUTDOWN__ = true;
+      (global as Record<string, unknown>).__BURBERRY_FORCED_SHUTDOWN__ = true;
     };
 
     // Return an async iterator that yields blocks
     return {
       async next(): Promise<IteratorResult<Block>> {
         if (done) {
-          return { done: true, value: undefined as any };
+          return { done: true, value: undefined as unknown };
         }
 
         if (queue.length > 0) {
           // If there are blocks in the queue, return one
-          return { done: false, value: queue.shift()! };
+          const block = queue.shift();
+          if (block === undefined) {
+            // This should never happen, but we handle it just in case
+            return { done: true, value: undefined as unknown };
+          }
+          return { done: false, value: block };
         }
 
         // Otherwise, wait for a block
@@ -361,7 +384,7 @@ export class BlockCollector implements Collector<Block> {
       // Clean up when the iterator is done
       async return(): Promise<IteratorResult<Block>> {
         cleanup();
-        return { done: true, value: undefined as any };
+        return { done: true, value: undefined as unknown };
       },
     };
   }

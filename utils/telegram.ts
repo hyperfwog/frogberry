@@ -63,7 +63,7 @@ export class TelegramClient {
   async sendMessage(message: TelegramMessage): Promise<void> {
     const url = this.getUrl(message.botToken);
 
-    const data: Record<string, any> = {
+    const data: Record<string, unknown> = {
       chat_id: message.chatId,
       text: message.text,
       parse_mode: message.parseMode || 'MarkdownV2',
@@ -124,7 +124,7 @@ export class TelegramClient {
 
     const url = this.getUrl(this.config.errorReporting.botToken);
 
-    const data: Record<string, any> = {
+    const data: Record<string, unknown> = {
       chat_id: this.config.errorReporting.chatId,
       link_preview_options: {
         is_disabled: true,

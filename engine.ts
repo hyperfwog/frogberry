@@ -45,6 +45,10 @@ export interface EngineConfig {
  * Engine class - coordinates collectors, strategies, and executors
  */
 export class Engine<E, A> {
+  // Static registry of all running engines for global SIGINT handling
+  private static runningEngines: Engine<any, any>[] = [];
+  private static globalSigintHandlerRegistered = false;
+
   private collectors: Array<Collector<E>> = [];
   private strategies: Array<Strategy<E, A>> = [];
   private executors: Array<Executor<A>> = [];
@@ -54,6 +58,37 @@ export class Engine<E, A> {
   private eventChannel?: BroadcastChannel<E>;
   private actionChannel?: BroadcastChannel<A>;
   private _sigintHandlerRegistered = false;
+
+  /**
+   * Register a global SIGINT handler that will stop all running engines
+   * This is a static method that should be called once at application startup
+   * @param timeoutMs Maximum time to wait for graceful shutdown in milliseconds
+   */
+  public static registerGlobalSigintHandler(timeoutMs = 5000): void {
+    if (Engine.globalSigintHandlerRegistered) {
+      return;
+    }
+
+    process.on('SIGINT', async () => {
+      logger.info('Received SIGINT at global level, stopping all engines...');
+      
+      // Create a copy of the running engines array to avoid modification during iteration
+      const engines = [...Engine.runningEngines];
+      
+      // Stop all engines in parallel
+      await Promise.all(
+        engines.map(engine => engine.stop(timeoutMs))
+      ).catch(err => {
+        logger.error(`Error stopping engines: ${err}`);
+      });
+      
+      logger.info('All engines stopped, exiting process');
+      process.exit(0);
+    });
+
+    Engine.globalSigintHandlerRegistered = true;
+    logger.info('Global SIGINT handler registered');
+  }
 
   /**
    * Create a new Engine instance
@@ -99,9 +134,9 @@ export class Engine<E, A> {
       logger.info('Received SIGINT, stopping engine...');
       await this.stop(this.config.sigintShutdownTimeoutMs);
 
+      // We don't call process.exit() here anymore, as we'll let the global SIGINT handler handle it
       if (this.config.exitProcessOnSigint) {
-        logger.info('Exiting process due to SIGINT');
-        process.exit(0);
+        logger.info('Engine stopped due to SIGINT, process will exit via global handler');
       }
     });
 
@@ -322,6 +357,12 @@ export class Engine<E, A> {
 
     // Ensure all resources are cleaned up
     this.cleanupResources();
+    
+    // Remove this engine from the static registry of running engines
+    const index = Engine.runningEngines.indexOf(this);
+    if (index !== -1) {
+      Engine.runningEngines.splice(index, 1);
+    }
   }
 
   /**
@@ -374,6 +415,9 @@ export class Engine<E, A> {
     }
 
     this.running = true;
+    
+    // Add this engine to the static registry of running engines
+    Engine.runningEngines.push(this);
 
     // Create broadcast channels for events and actions
     this.eventChannel = new BroadcastChannel<E>(

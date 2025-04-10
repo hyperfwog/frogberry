@@ -67,10 +67,11 @@ async function main() {
     initialBackoffMs: 100,
     maxBackoffMs: 5000,
     stopOnCriticalError: true,
-    registerSigintHandler: true,
-    sigintShutdownTimeoutMs: 3000,
-    exitProcessOnSigint: true,
+    // No need for individual SIGINT handlers anymore
   };
+
+  // Register the global SIGINT handler
+  Engine.registerGlobalSigintHandler(3000);
 
   // Create a new engine with the configuration
   const engine = new Engine<Event, Action>(config);
@@ -105,7 +106,15 @@ async function main() {
   });
 
   logger.info('Engine stopped');
+  // No need to call process.exit(0) here, as the global SIGINT handler will handle it
+  // or the process will exit naturally when all tasks are complete
 }
+
+// Add process exit hook for logging purposes only
+process.on('exit', (code) => {
+  logger.info(`Process exiting with code ${code}`);
+  // Perform any cleanup here if needed
+});
 
 // Run the example
 main().catch((err) => {

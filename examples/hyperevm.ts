@@ -151,11 +151,11 @@ async function main() {
     blockRange: 50,
   };
 
-  // Create a block engine with SIGINT handler
-  const blockEngine = new Engine<Block, Action>(engineConfig)
-    .withSigintHandler(true)
-    .withSigintShutdownTimeout(3000)
-    .withExitProcessOnSigint(true);
+// Register the global SIGINT handler
+Engine.registerGlobalSigintHandler(5000);
+
+// Create a block engine (no need for individual SIGINT handlers now)
+const blockEngine = new Engine<Block, Action>(engineConfig);
   blockEngine.addCollector(BlockCollector.withHttp(nodeUrl, hyperEvmChain, blockCollectorConfig));
   blockEngine.addStrategy(new BlockStrategy());
   blockEngine.addExecutor(new PrinterExecutor<Action>('Block'));
@@ -192,8 +192,19 @@ async function main() {
   });
 
   logger.info('All engines stopped');
-  process.exit(0);
+  // No need to call process.exit(0) here, as the global SIGINT handler will handle it
+  // or the process will exit naturally when all tasks are complete
 }
+
+// Add process exit hook for logging purposes only
+process.on('exit', (code) => {
+  logger.info(`Process exiting with code ${code}`);
+  // Perform any cleanup here if needed
+});
+
+// Note: We don't need to add a SIGINT handler here anymore
+// The global SIGINT handler registered with Engine.registerGlobalSigintHandler()
+// will handle graceful shutdown of all engines
 
 // Run the example
 main().catch((err) => {

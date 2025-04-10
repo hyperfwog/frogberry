@@ -90,7 +90,7 @@ export class CollectorMap<E1, E2> implements Collector<E2> {
       async next(): Promise<IteratorResult<E2>> {
         const result = await stream.next();
         if (result.done) {
-          return { done: true, value: undefined as any };
+          return { done: true, value: undefined as unknown };
         }
         return { done: false, value: f(result.value) };
       },
@@ -124,7 +124,7 @@ export class CollectorFilterMap<E1, E2> implements Collector<E2> {
         while (true) {
           const result = await stream.next();
           if (result.done) {
-            return { done: true, value: undefined as any };
+            return { done: true, value: undefined as unknown };
           }
 
           const mapped = f(result.value);
