@@ -1,5 +1,5 @@
-<div align="center">
-  <img src="frogberry.png" alt="Frogberry" title="Frogberry" width="100" />
+<div>
+  <img src="frogberry.png" alt="Frogberry" title="Frogberry" width="100" height="100" />
 </div>
 
 # Frogberry
