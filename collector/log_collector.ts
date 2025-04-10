@@ -65,7 +65,12 @@ export class LogCollector implements Collector<Log> {
     };
 
     // Determine if the client uses WebSocket transport
-    this.isWebSocket = (this.client.transport as any)?.type === 'webSocket';
+    // Check if the transport is a WebSocket transport
+    this.isWebSocket =
+      typeof this.client.transport === 'object' &&
+      this.client.transport !== null &&
+      'type' in this.client.transport &&
+      this.client.transport.type === 'webSocket';
   }
 
   /**
@@ -138,12 +143,7 @@ export class LogCollector implements Collector<Log> {
         // Set up a polling mechanism for the filter
         const pollFilterChanges = async () => {
           // Skip if already polling or done
-          if (
-            isPolling ||
-            done ||
-            abortController.signal.aborted ||
-            (global as any).__BURBERRY_FORCED_SHUTDOWN__
-          ) {
+          if (isPolling || done || abortController.signal.aborted) {
             return;
           }
 
@@ -172,14 +172,16 @@ export class LogCollector implements Collector<Log> {
 
               if (resolvers.length > 0) {
                 // If there are waiting resolvers, resolve one with the log
-                const resolve = resolvers.shift()!;
-                resolve({ done: false, value: log });
+                const resolve = resolvers.shift();
+                if (resolve) {
+                  resolve({ done: false, value: log });
+                }
               } else {
                 // Otherwise, add the log to the queue
                 queue.push(log);
 
                 // Limit queue size
-                if (queue.length > this.config.maxQueueSize!) {
+                if (queue.length > (this.config.maxQueueSize ?? 1000)) {
                   queue.shift();
                   logger.warn('LogCollector queue overflow, dropping oldest log');
                 }
@@ -225,7 +227,7 @@ export class LogCollector implements Collector<Log> {
 
           // Resolve any waiting resolvers with done
           for (const resolver of resolvers) {
-            resolver({ done: true, value: undefined as any });
+            resolver({ done: true, value: undefined as unknown });
           }
           resolvers = [];
 
@@ -248,12 +250,17 @@ export class LogCollector implements Collector<Log> {
     return {
       async next(): Promise<IteratorResult<Log>> {
         if (done) {
-          return { done: true, value: undefined as any };
+          return { done: true, value: undefined as unknown };
         }
 
         if (queue.length > 0) {
           // If there are logs in the queue, return one
-          return { done: false, value: queue.shift()! };
+          const log = queue.shift();
+          if (log === undefined) {
+            // This should never happen, but we handle it just in case
+            return { done: true, value: undefined as unknown };
+          }
+          return { done: false, value: log };
         }
 
         // Otherwise, wait for a log
@@ -267,7 +274,7 @@ export class LogCollector implements Collector<Log> {
         if (cleanupFn) {
           cleanupFn();
         }
-        return { done: true, value: undefined as any };
+        return { done: true, value: undefined as unknown };
       },
     };
   }
@@ -296,18 +303,13 @@ export class LogCollector implements Collector<Log> {
     }
 
     // Create a polling mechanism for logs with exponential backoff
-    let currentInterval = this.config.pollingIntervalMs!;
+    let currentInterval = this.config.pollingIntervalMs ?? 1000;
     let consecutiveErrors = 0;
     let isPolling = false; // Flag to prevent concurrent polling
 
     const pollLogs = async () => {
       // Skip if already polling or done
-      if (
-        isPolling ||
-        done ||
-        abortController.signal.aborted ||
-        (global as any).__BURBERRY_FORCED_SHUTDOWN__
-      ) {
+      if (isPolling || done || abortController.signal.aborted) {
         return;
       }
 
@@ -324,18 +326,20 @@ export class LogCollector implements Collector<Log> {
         const latestBlock = await this.client.getBlockNumber();
 
         // Skip if no new blocks
-        if (latestBlock <= this.lastProcessedBlock!) {
+        if (this.lastProcessedBlock !== undefined && latestBlock <= this.lastProcessedBlock) {
           isPolling = false;
           return;
         }
 
         // Calculate the range to fetch
         // Don't fetch more than blockRange blocks at once to avoid timeouts
-        const fromBlock = this.lastProcessedBlock! + BigInt(1);
+        // At this point, we know lastProcessedBlock is defined because we checked above
+        const fromBlock = (this.lastProcessedBlock ?? BigInt(0)) + BigInt(1);
+        const blockRange = this.config.blockRange ?? 100;
         const toBlock =
-          latestBlock < fromBlock + BigInt(this.config.blockRange!)
+          latestBlock < fromBlock + BigInt(blockRange)
             ? latestBlock
-            : fromBlock + BigInt(this.config.blockRange! - 1);
+            : fromBlock + BigInt(blockRange - 1);
 
         // Check again if we're done before making the getLogs call
         if (done || abortController.signal.aborted) {
@@ -356,7 +360,7 @@ export class LogCollector implements Collector<Log> {
         // Reset backoff on success
         if (consecutiveErrors > 0) {
           consecutiveErrors = 0;
-          currentInterval = this.config.pollingIntervalMs!;
+          currentInterval = this.config.pollingIntervalMs ?? 1000;
           if (intervalId) {
             clearInterval(intervalId);
             intervalId = setInterval(pollLogs, currentInterval);
@@ -370,11 +374,7 @@ export class LogCollector implements Collector<Log> {
         }
 
         // Check again if we're done before processing logs
-        if (
-          done ||
-          abortController.signal.aborted ||
-          (global as any).__BURBERRY_FORCED_SHUTDOWN__
-        ) {
+        if (done || abortController.signal.aborted) {
           isPolling = false;
           return;
         }
@@ -386,25 +386,23 @@ export class LogCollector implements Collector<Log> {
 
         for (const log of logs) {
           // Check if we're done before processing each log
-          if (
-            done ||
-            abortController.signal.aborted ||
-            (global as any).__BURBERRY_FORCED_SHUTDOWN__
-          ) {
+          if (done || abortController.signal.aborted) {
             isPolling = false;
             return;
           }
 
           if (resolvers.length > 0) {
             // If there are waiting resolvers, resolve one with the log
-            const resolve = resolvers.shift()!;
-            resolve({ done: false, value: log });
+            const resolve = resolvers.shift();
+            if (resolve) {
+              resolve({ done: false, value: log });
+            }
           } else {
             // Otherwise, add the log to the queue
             queue.push(log);
 
             // Limit queue size
-            if (queue.length > this.config.maxQueueSize!) {
+            if (queue.length > (this.config.maxQueueSize ?? 1000)) {
               queue.shift();
               logger.warn('LogCollector queue overflow, dropping oldest log');
             }
@@ -458,15 +456,12 @@ export class LogCollector implements Collector<Log> {
 
       // Resolve any waiting resolvers with done
       for (const resolver of resolvers) {
-        resolver({ done: true, value: undefined as any });
+        resolver({ done: true, value: undefined as unknown });
       }
       resolvers = [];
 
       // Clear the queue
       queue.length = 0;
-
-      // Set the global forced shutdown flag to ensure any in-progress operations stop
-      (global as any).__BURBERRY_FORCED_SHUTDOWN__ = true;
 
       // Clear any pending API calls or timeouts
       if (this.lastProcessedBlock) {
@@ -479,12 +474,17 @@ export class LogCollector implements Collector<Log> {
     return {
       async next(): Promise<IteratorResult<Log>> {
         if (done) {
-          return { done: true, value: undefined as any };
+          return { done: true, value: undefined as unknown };
         }
 
         if (queue.length > 0) {
           // If there are logs in the queue, return one
-          return { done: false, value: queue.shift()! };
+          const log = queue.shift();
+          if (log === undefined) {
+            // This should never happen, but we handle it just in case
+            return { done: true, value: undefined as unknown };
+          }
+          return { done: false, value: log };
         }
 
         // Otherwise, wait for a log
@@ -496,7 +496,7 @@ export class LogCollector implements Collector<Log> {
       // Clean up when the iterator is done
       async return(): Promise<IteratorResult<Log>> {
         cleanup();
-        return { done: true, value: undefined as any };
+        return { done: true, value: undefined as unknown };
       },
     };
   }

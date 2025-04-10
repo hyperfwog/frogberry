@@ -58,7 +58,12 @@ export class MempoolCollector implements Collector<Transaction> {
     };
 
     // Determine if the client uses WebSocket transport
-    this.isWebSocket = (this.client.transport as any)?.type === 'webSocket';
+    // Check if the transport is a WebSocket transport
+    this.isWebSocket =
+      typeof this.client.transport === 'object' &&
+      this.client.transport !== null &&
+      'type' in this.client.transport &&
+      this.client.transport.type === 'webSocket';
   }
 
   /**
@@ -125,12 +130,7 @@ export class MempoolCollector implements Collector<Transaction> {
         // Set up a polling mechanism for the filter
         const pollFilterChanges = async () => {
           // Skip if already polling or done
-          if (
-            isPolling ||
-            done ||
-            abortController.signal.aborted ||
-            (global as any).__BURBERRY_FORCED_SHUTDOWN__
-          ) {
+          if (isPolling || done || abortController.signal.aborted) {
             return;
           }
 
@@ -193,7 +193,7 @@ export class MempoolCollector implements Collector<Transaction> {
 
           // Resolve any waiting resolvers with done
           for (const resolver of resolvers) {
-            resolver({ done: true, value: undefined as any });
+            resolver({ done: true, value: undefined as unknown });
           }
           resolvers = [];
 
@@ -220,12 +220,17 @@ export class MempoolCollector implements Collector<Transaction> {
     return {
       async next(): Promise<IteratorResult<Transaction>> {
         if (done) {
-          return { done: true, value: undefined as any };
+          return { done: true, value: undefined as unknown };
         }
 
         if (queue.length > 0) {
           // If there are transactions in the queue, return one
-          return { done: false, value: queue.shift()! };
+          const tx = queue.shift();
+          if (tx === undefined) {
+            // This should never happen, but we handle it just in case
+            return { done: true, value: undefined as unknown };
+          }
+          return { done: false, value: tx };
         }
 
         // Otherwise, wait for a transaction
@@ -239,7 +244,7 @@ export class MempoolCollector implements Collector<Transaction> {
         if (cleanupFn) {
           cleanupFn();
         }
-        return { done: true, value: undefined as any };
+        return { done: true, value: undefined as unknown };
       },
     };
   }
@@ -257,17 +262,12 @@ export class MempoolCollector implements Collector<Transaction> {
     let isPolling = false; // Flag to prevent concurrent polling
 
     // Create a polling mechanism for pending transactions with exponential backoff
-    let currentInterval = this.config.pollingIntervalMs!;
+    let currentInterval = this.config.pollingIntervalMs ?? 1000;
     let consecutiveErrors = 0;
 
     const pollTxs = async () => {
       // Skip if already polling or done
-      if (
-        isPolling ||
-        done ||
-        abortController.signal.aborted ||
-        (global as any).__BURBERRY_FORCED_SHUTDOWN__
-      ) {
+      if (isPolling || done || abortController.signal.aborted) {
         return;
       }
 
@@ -300,7 +300,7 @@ export class MempoolCollector implements Collector<Transaction> {
         // Reset backoff on success
         if (consecutiveErrors > 0) {
           consecutiveErrors = 0;
-          currentInterval = this.config.pollingIntervalMs!;
+          currentInterval = this.config.pollingIntervalMs ?? 1000;
           if (intervalId) {
             clearInterval(intervalId);
             intervalId = setInterval(pollTxs, currentInterval);
@@ -355,7 +355,7 @@ export class MempoolCollector implements Collector<Transaction> {
 
       // Resolve any waiting resolvers with done
       for (const resolver of resolvers) {
-        resolver({ done: true, value: undefined as any });
+        resolver({ done: true, value: undefined as unknown });
       }
       resolvers = [];
 
@@ -366,9 +366,6 @@ export class MempoolCollector implements Collector<Transaction> {
       this.pendingTxHashes.clear();
       this.processedTxHashes.clear();
 
-      // Set the global forced shutdown flag to ensure any in-progress operations stop
-      (global as any).__BURBERRY_FORCED_SHUTDOWN__ = true;
-
       // Clear any pending sets to prevent further processing
       this.pendingTxHashes.clear();
       this.processedTxHashes.clear();
@@ -378,12 +375,17 @@ export class MempoolCollector implements Collector<Transaction> {
     return {
       async next(): Promise<IteratorResult<Transaction>> {
         if (done) {
-          return { done: true, value: undefined as any };
+          return { done: true, value: undefined as unknown };
         }
 
         if (queue.length > 0) {
           // If there are transactions in the queue, return one
-          return { done: false, value: queue.shift()! };
+          const tx = queue.shift();
+          if (tx === undefined) {
+            // This should never happen, but we handle it just in case
+            return { done: true, value: undefined as unknown };
+          }
+          return { done: false, value: tx };
         }
 
         // Otherwise, wait for a transaction
@@ -395,7 +397,7 @@ export class MempoolCollector implements Collector<Transaction> {
       // Clean up when the iterator is done
       async return(): Promise<IteratorResult<Transaction>> {
         cleanup();
-        return { done: true, value: undefined as any };
+        return { done: true, value: undefined as unknown };
       },
     };
   }
@@ -414,11 +416,11 @@ export class MempoolCollector implements Collector<Transaction> {
     abortController?: AbortController
   ): Promise<void> {
     // Check if we're done before processing
-    if (abortController?.signal.aborted || (global as any).__BURBERRY_FORCED_SHUTDOWN__) {
+    if (abortController?.signal.aborted) {
       return;
     }
     // Limit the number of pending transactions to avoid memory leaks
-    if (this.pendingTxHashes.size >= this.config.maxPendingTxs!) {
+    if (this.pendingTxHashes.size >= (this.config.maxPendingTxs ?? 5000)) {
       const oldestTxHashes = Array.from(this.pendingTxHashes).slice(0, txHashes.length);
       for (const txHash of oldestTxHashes) {
         this.pendingTxHashes.delete(txHash);
@@ -441,7 +443,7 @@ export class MempoolCollector implements Collector<Transaction> {
 
     // Process pending transactions in batches to avoid too many concurrent requests
     const pendingTxHashesArray = Array.from(this.pendingTxHashes);
-    const batchSize = this.config.maxConcurrentFetches!;
+    const batchSize = this.config.maxConcurrentFetches ?? 5;
 
     for (let i = 0; i < pendingTxHashesArray.length; i += batchSize) {
       const batch = pendingTxHashesArray.slice(i, i + batchSize);
@@ -459,7 +461,7 @@ export class MempoolCollector implements Collector<Transaction> {
           this.processedTxHashes.add(txHash);
 
           // Limit the size of the processed set to avoid memory leaks
-          if (this.processedTxHashes.size > this.config.maxProcessedTxs!) {
+          if (this.processedTxHashes.size > (this.config.maxProcessedTxs ?? 10000)) {
             const oldestTxHashes = Array.from(this.processedTxHashes).slice(0, 100);
             for (const oldTxHash of oldestTxHashes) {
               this.processedTxHashes.delete(oldTxHash);
@@ -484,14 +486,16 @@ export class MempoolCollector implements Collector<Transaction> {
 
         if (resolvers.length > 0) {
           // If there are waiting resolvers, resolve one with the transaction
-          const resolve = resolvers.shift()!;
-          resolve({ done: false, value: tx });
+          const resolve = resolvers.shift();
+          if (resolve) {
+            resolve({ done: false, value: tx });
+          }
         } else {
           // Otherwise, add the transaction to the queue
           queue.push(tx);
 
           // Limit queue size
-          if (queue.length > this.config.maxQueueSize!) {
+          if (queue.length > (this.config.maxQueueSize ?? 1000)) {
             queue.shift();
             logger.warn('MempoolCollector queue overflow, dropping oldest transaction');
           }

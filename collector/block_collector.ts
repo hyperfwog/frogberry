@@ -109,11 +109,7 @@ export class BlockCollector implements Collector<Block> {
         const unwatch = await this.client.watchBlocks({
           onBlock: (block) => {
             // Check if we're done before processing the block
-            if (
-              done ||
-              abortController.signal.aborted ||
-              (global as Record<string, unknown>).__BURBERRY_FORCED_SHUTDOWN__
-            ) {
+            if (done || abortController.signal.aborted) {
               return;
             }
 
@@ -122,7 +118,7 @@ export class BlockCollector implements Collector<Block> {
               // Skip blocks without a number
               return;
             }
-            
+
             if (lastBlockNumber === null || block.number > lastBlockNumber) {
               lastBlockNumber = block.number;
 
@@ -237,12 +233,7 @@ export class BlockCollector implements Collector<Block> {
 
     const pollBlock = async () => {
       // Skip if already polling or done
-      if (
-        isPolling ||
-        done ||
-        abortController.signal.aborted ||
-        (global as Record<string, unknown>).__BURBERRY_FORCED_SHUTDOWN__
-      ) {
+      if (isPolling || done || abortController.signal.aborted) {
         return;
       }
 
@@ -353,9 +344,6 @@ export class BlockCollector implements Collector<Block> {
 
       // Clear the queue
       queue.length = 0;
-
-      // Set the global forced shutdown flag to ensure any in-progress operations stop
-      (global as Record<string, unknown>).__BURBERRY_FORCED_SHUTDOWN__ = true;
     };
 
     // Return an async iterator that yields blocks

@@ -6,7 +6,6 @@
 import type { Block, Chain, Log, Transaction } from 'viem';
 import { BlockCollector, type BlockCollectorConfig } from '../collector';
 import { LogCollector, type LogCollectorConfig, type LogFilter } from '../collector';
-import { MempoolCollector, MempoolCollectorConfig } from '../collector';
 import { Engine, type EngineConfig } from '../engine';
 import { PrinterExecutor } from '../executor';
 import type { ActionSubmitter, Strategy } from '../types';
@@ -151,11 +150,11 @@ async function main() {
     blockRange: 50,
   };
 
-// Register the global SIGINT handler
-Engine.registerGlobalSigintHandler(5000);
+  // Register the global SIGINT handler
+  Engine.registerGlobalSigintHandler(5000);
 
-// Create a block engine (no need for individual SIGINT handlers now)
-const blockEngine = new Engine<Block, Action>(engineConfig);
+  // Create a block engine (no need for individual SIGINT handlers now)
+  const blockEngine = new Engine<Block, Action>(engineConfig);
   blockEngine.addCollector(BlockCollector.withHttp(nodeUrl, hyperEvmChain, blockCollectorConfig));
   blockEngine.addStrategy(new BlockStrategy());
   blockEngine.addExecutor(new PrinterExecutor<Action>('Block'));
@@ -179,8 +178,8 @@ const blockEngine = new Engine<Block, Action>(engineConfig);
   logger.info('WHYPE transfer engine started');
 
   // Run for 30 seconds
-  logger.info('Running for 30 seconds...');
-  await new Promise((resolve) => setTimeout(resolve, 30000));
+  logger.info('Running for 10 seconds...');
+  await new Promise((resolve) => setTimeout(resolve, 10_000));
 
   // Stop all engines with a 5-second timeout
   logger.info('Stopping engines...');

@@ -10,7 +10,7 @@
     "example": "bun examples/simple.ts",
     "format": "biome format --write .",
     "lint": "biome lint .",
-    "check": "biome check --apply ."
+    "check": "biome check --write ."
   },
   "keywords": ["trading", "bot", "framework", "event-driven", "typescript", "bun"],
   "author": "",

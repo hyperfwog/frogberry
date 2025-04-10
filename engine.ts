@@ -46,7 +46,7 @@ export interface EngineConfig {
  */
 export class Engine<E, A> {
   // Static registry of all running engines for global SIGINT handling
-  private static runningEngines: Engine<any, any>[] = [];
+  private static runningEngines: Engine<unknown, unknown>[] = [];
   private static globalSigintHandlerRegistered = false;
 
   private collectors: Array<Collector<E>> = [];
@@ -71,17 +71,15 @@ export class Engine<E, A> {
 
     process.on('SIGINT', async () => {
       logger.info('Received SIGINT at global level, stopping all engines...');
-      
+
       // Create a copy of the running engines array to avoid modification during iteration
       const engines = [...Engine.runningEngines];
-      
+
       // Stop all engines in parallel
-      await Promise.all(
-        engines.map(engine => engine.stop(timeoutMs))
-      ).catch(err => {
+      await Promise.all(engines.map((engine) => engine.stop(timeoutMs))).catch((err) => {
         logger.error(`Error stopping engines: ${err}`);
       });
-      
+
       logger.info('All engines stopped, exiting process');
       process.exit(0);
     });
@@ -319,23 +317,21 @@ export class Engine<E, A> {
     });
 
     // Create a promise that resolves when all tasks have completed
-    const shutdownPromise = new Promise<void>(async (resolve) => {
-      try {
-        // Close the channels to signal tasks to stop
-        if (this.eventChannel) {
-          this.eventChannel.close();
-        }
+    const shutdownPromise = new Promise<void>((resolve) => {
+      // Close the channels to signal tasks to stop
+      if (this.eventChannel) {
+        this.eventChannel.close();
+      }
 
-        if (this.actionChannel) {
-          this.actionChannel.close();
-        }
+      if (this.actionChannel) {
+        this.actionChannel.close();
+      }
 
-        // Wait a short time for tasks to notice the channels are closed
-        await new Promise((r) => setTimeout(r, 100));
-
+      // Wait a short time for tasks to notice the channels are closed
+      setTimeout(() => {
         // Try to wait for all tasks to complete with a shorter timeout
         const taskTimeout = Math.min(timeoutMs / 2, 2000);
-        await Promise.race([
+        Promise.race([
           Promise.all(
             this.tasks.map((task) => {
               // Create a timeout for each task
@@ -343,13 +339,15 @@ export class Engine<E, A> {
             })
           ),
           new Promise((r) => setTimeout(r, taskTimeout)),
-        ]);
-
-        resolve();
-      } catch (e) {
-        logger.error(`Error during engine shutdown: ${e}`);
-        resolve();
-      }
+        ])
+          .then(() => {
+            resolve();
+          })
+          .catch((e) => {
+            logger.error(`Error during engine shutdown: ${e}`);
+            resolve();
+          });
+      }, 100);
     });
 
     // Wait for either the shutdown to complete or the timeout to expire
@@ -357,7 +355,7 @@ export class Engine<E, A> {
 
     // Ensure all resources are cleaned up
     this.cleanupResources();
-    
+
     // Remove this engine from the static registry of running engines
     const index = Engine.runningEngines.indexOf(this);
     if (index !== -1) {
@@ -384,11 +382,15 @@ export class Engine<E, A> {
 
     // Set global state to indicate forced shutdown
     // This will be checked by collectors and other components
-    (global as any).__FROGBERRY_FORCED_SHUTDOWN__ = true;
+    (
+      global as unknown as { __FROGBERRY_FORCED_SHUTDOWN__: boolean }
+    ).__FROGBERRY_FORCED_SHUTDOWN__ = true;
 
     // After a short delay, reset the forced shutdown flag
     setTimeout(() => {
-      (global as any).__FROGBERRY_FORCED_SHUTDOWN__ = false;
+      (
+        global as unknown as { __FROGBERRY_FORCED_SHUTDOWN__: boolean }
+      ).__FROGBERRY_FORCED_SHUTDOWN__ = false;
     }, 5000);
   }
 
@@ -415,9 +417,9 @@ export class Engine<E, A> {
     }
 
     this.running = true;
-    
+
     // Add this engine to the static registry of running engines
-    Engine.runningEngines.push(this);
+    Engine.runningEngines.push(this as unknown as Engine<unknown, unknown>);
 
     // Create broadcast channels for events and actions
     this.eventChannel = new BroadcastChannel<E>(
