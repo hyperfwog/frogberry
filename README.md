@@ -517,8 +517,6 @@ main().catch((err) => {
 });
 ```
 
-Performance testing shows that with the Bun-powered HTTP collector and 0ms polling interval, HyperEVM blocks can be processed at a rate of approximately 0.37 blocks per second with an average interval of 1784.61ms between blocks.
-
 ## Features
 
 - **Modular Architecture**: Easily swap out collectors, strategies, and executors.
