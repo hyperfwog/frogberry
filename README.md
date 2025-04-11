@@ -277,8 +277,6 @@ main().catch((err) => {
 });
 ```
 
-Performance testing shows that WebSocket connections can process approximately 2.65 blocks per second with an average interval of 372.84ms between blocks, outperforming HTTP polling by about 14% in throughput.
-
 ### Ultra-Fast Block Collection from HyperEVM
 
 This example demonstrates how to collect blocks from HyperEVM as fast as possible using HTTP polling with the Bun-powered block collector:
