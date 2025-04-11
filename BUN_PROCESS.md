@@ -1,8 +1,8 @@
-# Frogberry Performance Improvements with Bun's Native Process APIs
+# Using Bun native Process API in Frogberry
 
-This document outlines the performance improvements made to the Frogberry framework by leveraging Bun's native process APIs. These improvements address the "clusterfuck of timeouts/promises" in the original implementation and provide significant performance benefits.
+This document outlines the performance improvements made or to be made to the Frogberry framework by leveraging Bun's native process APIs. These improvements address the "clusterfuck of timeouts/promises" in the original implementation and provide significant performance benefits.
 
-## Overview of Improvements
+## Overview
 
 The original Frogberry implementation uses a complex system of timeouts, promises, and manual state management, which can lead to performance issues and code complexity. By leveraging Bun's native process APIs, we've made the following improvements:
 
@@ -24,14 +24,12 @@ Each implementation consists of:
 1. A worker script that runs in a separate process
 2. A main class that spawns and communicates with the worker using Bun's IPC
 
-### Key Techniques Used
+### Key Techniques
 
 - **Process Spawning**: Using `Bun.spawn()` to create child processes
 - **IPC Communication**: Using Bun's built-in IPC for efficient inter-process communication
-- **Resource Monitoring**: Leveraging Bun's resource usage monitoring
-- **Graceful Shutdown**: Implementing proper cleanup with signals and timeouts
 
-## Performance Benefits
+## Key Benefits
 
 Based on benchmarks, the Bun-powered implementations provide the following benefits:
 
@@ -114,7 +112,7 @@ To migrate existing code to use the Bun-powered collectors:
 3. Replace `MempoolCollector` with a Bun-powered version (not yet implemented)
 4. Replace `LogCollector` with a Bun-powered version (not yet implemented)
 
-The API is designed to be compatible with the original collectors, so minimal changes should be required.
+The API is designed to be compatible with the original collectors, so minimal changes are required.
 
 ## Future Improvements
 
@@ -123,9 +121,4 @@ This proof-of-concept implementation demonstrates the benefits of using Bun's na
 1. Implementing Bun-powered versions of all collectors
 2. Refactoring the engine to use Bun's process APIs for better resource management
 3. Implementing a worker pool for parallel processing of events
-4. Adding more sophisticated error handling and recovery mechanisms
-5. Optimizing IPC communication for high-throughput scenarios
-
-## Conclusion
-
-By leveraging Bun's native process APIs, we've significantly improved the performance and maintainability of the Frogberry framework. The new implementations provide better resource utilization, improved scalability, and simplified code, while maintaining compatibility with the existing API.
+4. Optimizing IPC communication for high-throughput scenarios
