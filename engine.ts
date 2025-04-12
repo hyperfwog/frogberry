@@ -357,7 +357,7 @@ export class Engine<E, A> {
     this.cleanupResources();
 
     // Remove this engine from the static registry of running engines
-    const index = Engine.runningEngines.indexOf(this);
+    const index = Engine.runningEngines.indexOf(this as unknown as Engine<unknown, unknown>);
     if (index !== -1) {
       Engine.runningEngines.splice(index, 1);
     }
